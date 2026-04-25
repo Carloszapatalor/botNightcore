@@ -102,7 +102,7 @@ eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
     const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(3, 0, 3, 15)) {
+    if (force || isInTimeWindow(3, 0, 3, 15) || isInTimeWindow(17, 0, 17, 15)) {
       await sendEmbed("eventos", formatEventoEmbed(event));
     }
     return c.json({ date: getTodayUTC(), isNew, event });
