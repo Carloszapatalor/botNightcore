@@ -1,4 +1,4 @@
-type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking";
+type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking" | "inactividad";
 
 interface DiscordField {
   name: string;
@@ -16,17 +16,19 @@ export interface DiscordEmbed {
 }
 
 const WEBHOOK_KEYS: Record<DiscordChannel, string> = {
-  eventos: "DISCORD_WEBHOOK_EVENTOS",
-  bosses:  "DISCORD_WEBHOOK_BOSSES",
-  quests:  "DISCORD_WEBHOOK_QUESTS",
-  ranking: "DISCORD_WEBHOOK_RANKING",
+  eventos:     "DISCORD_WEBHOOK_EVENTOS",
+  bosses:      "DISCORD_WEBHOOK_BOSSES",
+  quests:      "DISCORD_WEBHOOK_QUESTS",
+  ranking:     "DISCORD_WEBHOOK_RANKING",
+  inactividad: "DISCORD_WEBHOOK_INACTIVIDAD",
 };
 
 const COLORS: Record<DiscordChannel, number> = {
-  eventos: 0xFFAA00,
-  bosses:  0xDD2222,
-  quests:  0x0099DD,
-  ranking: 0xFFD700,
+  eventos:     0xFFAA00,
+  bosses:      0xDD2222,
+  quests:      0x0099DD,
+  ranking:     0xFFD700,
+  inactividad: 0xFF6600,
 };
 
 const BOSS_EMOJI: Record<string, string> = {
@@ -167,6 +169,35 @@ export function formatRankingEmbed(
     description: `Semana del **${weekStart}**\n\n${lines.join("\n")}`,
     color:       COLORS.ranking,
     footer:    { text: "🏰 Clan Nightcore • ¡Sigue luchando para escalar el ranking!" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatInactividadEmbed(
+  inactivos: { player: string; hoursOffline: number; lastTask: string | null }[],
+  sinExp:    string[],
+  total:     number
+): DiscordEmbed {
+  const inactivosText = inactivos.length > 0
+    ? inactivos.map((p) => {
+        const tarea = p.lastTask ? ` *(${p.lastTask})*` : "";
+        return `**${p.player}** — ${p.hoursOffline}h offline${tarea}`;
+      }).join("\n").slice(0, 1024)
+    : "*Todos conectados recientemente ✅*";
+
+  const sinExpText = sinExp.length > 0
+    ? sinExp.map((p) => `**${p}**`).join(", ").slice(0, 1024)
+    : "*Todos han ganado EXP recientemente ✅*";
+
+  return {
+    title:       "⚠️ REPORTE DE INACTIVIDAD",
+    description: `Revisión del clan — ${new Date().toISOString().slice(0, 10)} | ${total} miembros`,
+    color:       COLORS.inactividad,
+    fields: [
+      { name: "😴 Sin conexión +48h",    value: inactivosText, inline: false },
+      { name: "💤 Sin EXP últimas 30h", value: sinExpText,     inline: false },
+    ],
+    footer:    { text: "🏰 Clan Nightcore • Reporte de actividad" },
     timestamp: new Date().toISOString(),
   };
 }
