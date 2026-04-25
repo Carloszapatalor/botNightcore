@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { getTursoClient } from "../lib/turso.ts";
 import { getTodayUTC } from "./clanSnapshot.ts";
+import { formatEventoEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 // ── Listas editables ──────────────────────────────────────────────
 // Cada entrada tiene un id interno y el label que se mostrará al anunciar
@@ -94,6 +95,10 @@ eventosClan.get("/lista", (c: Context) => {
 eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
+    const force = c.req.query("force") === "true";
+    if (force || isInTimeWindow(3, 0, 3, 15)) {
+      await sendEmbed("eventos", formatEventoEmbed(event));
+    }
     return c.json({ date: getTodayUTC(), isNew, event });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);

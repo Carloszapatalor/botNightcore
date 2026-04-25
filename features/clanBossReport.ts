@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getTursoClient } from "../lib/turso.ts";
 import { fetchClanProfiles, getTodayUTC } from "./clanSnapshot.ts";
+import { formatBossReportEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 type PvmStats = Record<string, number>;
 
@@ -9,7 +10,13 @@ interface StoredSnapshot {
   pvm_stats: string;
 }
 
-export async function buildBossReport(): Promise<string> {
+export interface BossReportData {
+  text:        string;
+  killsByBoss: Map<string, { player: string; kills: number }[]>;
+  topKillers:  { player: string; total: number }[];
+}
+
+export async function buildBossReport(): Promise<BossReportData> {
   const today = getTodayUTC();
   const now = new Date().toISOString().slice(11, 16); // HH:MM
   const db = getTursoClient();
@@ -21,7 +28,8 @@ export async function buildBossReport(): Promise<string> {
   });
 
   if (baselineRows.rows.length === 0) {
-    return `No hay baseline para hoy (${today}).\nEjecuta /clan/snapshot primero para establecer el punto de inicio.`;
+    const msg = `No hay baseline para hoy (${today}).\nEjecuta /clan/snapshot primero para establecer el punto de inicio.`;
+    return { text: msg, killsByBoss: new Map(), topKillers: [] };
   }
 
   const baseline = new Map<string, PvmStats>();
@@ -80,14 +88,19 @@ export async function buildBossReport(): Promise<string> {
     });
   }
 
-  return lines.join("\n");
+  return { text: lines.join("\n"), killsByBoss, topKillers: totalPerPlayer };
 }
 
 const clanBossReport = new Hono();
 
 clanBossReport.get("/", async (c) => {
   try {
-    return c.text(await buildBossReport());
+    const { text, killsByBoss, topKillers } = await buildBossReport();
+    const force = c.req.query("force") === "true";
+    if (force || isInTimeWindow(23, 50, 23, 59)) {
+      await sendEmbed("bosses", formatBossReportEmbed(killsByBoss, topKillers));
+    }
+    return c.text(text);
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);
   }

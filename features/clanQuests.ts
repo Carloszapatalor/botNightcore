@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { idleGet } from "../lib/api.ts";
 import { getClanName } from "../lib/env.ts";
+import { formatQuestsEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 const PAGE_SIZE = 100;
 
@@ -73,6 +74,12 @@ clanQuests.get("/", async (c) => {
       const skillingMatch = log.message.match(/^(.+?) completed a skilling quest/);
       if (combatMatch) combat[combatMatch[1]] = (combat[combatMatch[1]] ?? 0) + 1;
       else if (skillingMatch) skilling[skillingMatch[1]] = (skilling[skillingMatch[1]] ?? 0) + 1;
+    }
+
+    const force = c.req.query("force") === "true";
+    if (force || isInTimeWindow(23, 45, 23, 59)) {
+      const today = new Date().toISOString().slice(0, 10);
+      await sendEmbed("quests", formatQuestsEmbed(combat, skilling, today));
     }
 
     return c.text(formatQuestReport(combat, skilling));

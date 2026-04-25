@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getTursoClient } from "../lib/turso.ts";
 import { getTodayUTC } from "./clanSnapshot.ts";
+import { formatRankingEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 function getWeekStartUTC(): string {
   const d = new Date();
@@ -32,16 +33,23 @@ rpgProfile.get("/ranking/semanal", async (c) => {
   const weekStart = getWeekStartUTC();
   try {
     const rows = await db.execute({
-      sql: `SELECT username, SUM(total_exp) as week_exp
-            FROM rpg_daily_exp
-            WHERE date >= ?
-            GROUP BY username
+      sql: `SELECT d.username, SUM(d.total_exp) as week_exp, COALESCE(p.title, '🌱 Buscador') as title
+            FROM rpg_daily_exp d
+            LEFT JOIN rpg_players p ON p.username = d.username
+            WHERE d.date >= ?
+            GROUP BY d.username
             ORDER BY week_exp DESC
             LIMIT 5`,
       args: [weekStart],
     });
-    const ranking = (rows.rows as unknown as { username: string; week_exp: number }[])
-      .map((r, i) => ({ pos: i + 1, player: r.username, weekExp: r.week_exp }));
+    const ranking = (rows.rows as unknown as { username: string; week_exp: number; title: string }[])
+      .map((r, i) => ({ pos: i + 1, player: r.username, title: r.title, weekExp: r.week_exp }));
+
+    const force = c.req.query("force") === "true";
+    if (force || isInTimeWindow(23, 57, 23, 59)) {
+      await sendEmbed("ranking", formatRankingEmbed(ranking, weekStart));
+    }
+
     return c.json({ weekStart, ranking });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);
