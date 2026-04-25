@@ -14,7 +14,7 @@ function getTodayUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function fetchTodayLogs(clanName: string): Promise<Log[]> {
+export async function fetchTodayLogs(clanName: string): Promise<Log[]> {
   const today = getTodayUTC();
   const result: Log[] = [];
   let skip = 0;

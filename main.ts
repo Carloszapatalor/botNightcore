@@ -9,6 +9,8 @@ import itemPrice from "./features/itemPrice.ts";
 import clanSnapshot from "./features/clanSnapshot.ts";
 import clanBossReport from "./features/clanBossReport.ts";
 import eventosClan, { saveDailyEvents } from "./features/eventosClan.ts";
+import rpgCalc, { calcularExpDiaria } from "./features/rpgCalc.ts";
+import rpgProfile from "./features/rpgProfile.ts";
 import { initDb } from "./lib/turso.ts";
 
 const ENDPOINTS = [
@@ -21,7 +23,12 @@ const ENDPOINTS = [
   { method: "GET",  path: "/clan/boss-report",    description: "Kills de jefes del día (live vs baseline). Top killers" },
   { method: "GET",  path: "/clan/eventos/lista",  description: "Lista de incursiones, jefes y eventos disponibles" },
   { method: "GET",  path: "/clan/eventos/hoy",    description: "Evento del día sorteado a las 3:00 AM UTC" },
-  { method: "GET",  path: "/clan/eventos/sortear",description: "Fuerza un nuevo sorteo para hoy" },
+  { method: "GET",  path: "/clan/eventos/sortear",  description: "Fuerza un nuevo sorteo para hoy" },
+  { method: "GET",  path: "/rpg/calcular",          description: "Calcula EXP diaria para todos los miembros (manual)" },
+  { method: "GET",  path: "/rpg/ranking",           description: "Ranking permanente por EXP total" },
+  { method: "GET",  path: "/rpg/ranking/semanal",   description: "Ranking de la semana actual (lunes–domingo UTC)" },
+  { method: "GET",  path: "/rpg/perfiles",          description: "Todos los perfiles del clan" },
+  { method: "GET",  path: "/rpg/perfil/:name",      description: "Perfil individual: nivel, título, EXP total y desglose" },
   { method: "GET",  path: "/player/:name",           description: "Perfil de un jugador: skills por XP, última tarea, horas offline" },
   { method: "GET",  path: "/market/:itemId",         description: "Precio de un item: mínimo venta, máximo compra, promedio y volumen" },
 ];
@@ -69,10 +76,17 @@ app.route("/clan/boss-report", clanBossReport);
 app.route("/player",           playerProfile);
 app.route("/market",           itemPrice);
 app.route("/clan/eventos",     eventosClan);
+app.route("/rpg",              rpgCalc);
+app.route("/rpg",              rpgProfile);
 
 // Cron: sorteo de eventos a las 3:00 AM UTC
 Deno.cron("daily-event-selection", "0 3 * * *", async () => {
   await saveDailyEvents();
+});
+
+// Cron: calcular EXP RPG a las 23:58 UTC (tras el snapshot de bosses)
+Deno.cron("daily-rpg-calc", "58 23 * * *", async () => {
+  await calcularExpDiaria();
 });
 
 // Inicializar DB al arrancar
