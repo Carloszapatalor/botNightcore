@@ -75,11 +75,17 @@ export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyE
 
   const event = selectDailyEvent();
   await db.execute({
-    sql: `INSERT INTO daily_events (event_date, category, event_id, label, selected_at) VALUES (?, ?, ?, ?, ?)`,
+    sql: `INSERT OR IGNORE INTO daily_events (event_date, category, event_id, label, selected_at) VALUES (?, ?, ?, ?, ?)`,
     args: [today, event.category, event.id, event.label, event.selectedAt],
   });
 
-  return { isNew: true, event };
+  // siempre leer lo que quedó en DB (por si otro proceso ganó la carrera)
+  const stored = await db.execute({
+    sql: `SELECT category, event_id, label, selected_at FROM daily_events WHERE event_date = ?`,
+    args: [today],
+  });
+  const r = stored.rows[0] as unknown as { category: EventCategory; event_id: string; label: string; selected_at: string };
+  return { isNew: true, event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at } };
 }
 
 const eventosClan = new Hono();

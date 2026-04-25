@@ -108,16 +108,12 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
       args: [username, today, entry.questExp, entry.bossExp, entry.eventExp, total],
     });
 
-    // obtener total acumulado anterior
-    const prev = await db.execute({
-      sql: `SELECT total_exp FROM rpg_players WHERE username = ?`,
+    // total = suma de TODOS los días en rpg_daily_exp (idempotente ante re-ejecuciones)
+    const allExp = await db.execute({
+      sql: `SELECT SUM(total_exp) as lifetime FROM rpg_daily_exp WHERE username = ?`,
       args: [username],
     });
-    const prevTotal = prev.rows.length > 0
-      ? (prev.rows[0] as unknown as { total_exp: number }).total_exp
-      : 0;
-
-    const newTotal = prevTotal + total;
+    const newTotal = (allExp.rows[0] as unknown as { lifetime: number | null }).lifetime ?? 0;
 
     await db.execute({
       sql: `INSERT OR REPLACE INTO rpg_players (username, total_exp, level, title, last_updated)
