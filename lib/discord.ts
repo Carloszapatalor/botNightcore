@@ -31,6 +31,20 @@ const COLORS: Record<DiscordChannel, number> = {
   inactividad: 0xFF6600,
 };
 
+// IDs de rol a mencionar por canal (opcional — si no está configurado, no menciona)
+const ROLE_KEYS: Partial<Record<DiscordChannel, string>> = {
+  eventos:     "DISCORD_ROLE_EVENTOS",
+  bosses:      "DISCORD_ROLE_BOSSES",
+  inactividad: "DISCORD_ROLE_INACTIVIDAD",
+};
+
+function getRoleMention(channel: DiscordChannel): string {
+  const key = ROLE_KEYS[channel];
+  if (!key) return "";
+  const roleId = Deno.env.get(key);
+  return roleId ? `<@&${roleId}>` : "";
+}
+
 const BOSS_EMOJI: Record<string, string> = {
   MalignantSpider:       "🕷️",
   SkeletonWarrior:       "💀",
@@ -63,10 +77,13 @@ export async function sendEmbed(channel: DiscordChannel, embed: DiscordEmbed): P
   const url = getWebhookUrl(channel);
   if (!url) return false;
   try {
+    const mention = getRoleMention(channel);
+    const payload: Record<string, unknown> = { embeds: [embed] };
+    if (mention) payload.content = mention;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [embed] }),
+      body: JSON.stringify(payload),
     });
     return res.ok;
   } catch {
