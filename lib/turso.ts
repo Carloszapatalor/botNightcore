@@ -49,4 +49,11 @@ export async function initDb() {
       PRIMARY KEY (username, date)
     )
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS inactivity_whitelist (
+      username   TEXT PRIMARY KEY,
+      reason     TEXT,
+      added_at   TEXT NOT NULL
+    )
+  `);
 }

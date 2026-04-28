@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { idleGet } from "../lib/api.ts";
 import { getClanName } from "../lib/env.ts";
+import { getTursoClient } from "../lib/turso.ts";
 import { formatInactividadEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 const OFFLINE_HOURS = 48;
@@ -18,11 +19,18 @@ clanReporte.get("/", async (c) => {
   try {
     const clanName = getClanName();
 
-    // miembros + exp en paralelo (una sola llamada a cada API)
-    const [recruitment, experience] = await Promise.all([
+    const db = getTursoClient();
+
+    // miembros, exp y whitelist en paralelo
+    const [recruitment, experience, whitelistRows] = await Promise.all([
       idleGet<RecruitmentData>(`/api/Clan/recruitment/${encodeURIComponent(clanName)}`),
       idleGet<ClanExpSummary>(`/api/Clan/${encodeURIComponent(clanName)}/experience?hours=${NO_XP_HOURS}`),
+      db.execute(`SELECT username FROM inactivity_whitelist`),
     ]);
+
+    const whitelist = new Set(
+      (whitelistRows.rows as unknown as { username: string }[]).map((r) => r.username)
+    );
 
     const members = recruitment.memberlist.map((m) => m.memberName);
 
@@ -35,9 +43,9 @@ clanReporte.get("/", async (c) => {
       )
     );
 
-    // inactivos: sin conexión más de 48h
+    // inactivos: sin conexión más de 48h (excluye whitelist)
     const inactivos = profiles
-      .filter((p) => p.hoursOffline >= OFFLINE_HOURS)
+      .filter((p) => p.hoursOffline >= OFFLINE_HOURS && !whitelist.has(p.name))
       .sort((a, b) => b.hoursOffline - a.hoursOffline)
       .map((p) => ({
         player:       p.name,
@@ -45,9 +53,9 @@ clanReporte.get("/", async (c) => {
         lastTask:     p.lastTask,
       }));
 
-    // sin exp: no aparecen en el top de exp de las últimas 30h
+    // sin exp: no aparecen en el top de exp de las últimas 30h (excluye whitelist)
     const withXp = new Set(experience.playerContributions.map((p) => p.username));
-    const sinExp = members.filter((name) => !withXp.has(name));
+    const sinExp = members.filter((name) => !withXp.has(name) && !whitelist.has(name));
 
     const force = c.req.query("force") === "true";
     if (force || isInTimeWindow(12, 0, 12, 15)) {

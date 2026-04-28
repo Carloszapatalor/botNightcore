@@ -12,6 +12,7 @@ import eventosClan, { saveDailyEvents } from "./features/eventosClan.ts";
 import rpgCalc, { calcularExpDiaria } from "./features/rpgCalc.ts";
 import rpgProfile from "./features/rpgProfile.ts";
 import clanReporte from "./features/clanReporte.ts";
+import clanWhitelist from "./features/clanWhitelist.ts";
 import { initDb } from "./lib/turso.ts";
 
 const ENDPOINTS = [
@@ -22,7 +23,10 @@ const ENDPOINTS = [
   { method: "GET",  path: "/clan/noxp?hours=24",     description: "Miembros que no han ganado XP en las últimas N horas (default 24h)" },
   { method: "GET",  path: "/clan/snapshot",          description: "Guarda pvmStats de todos los miembros en Turso (ejecutar 1x/día)" },
   { method: "GET",  path: "/clan/boss-report",    description: "Kills de jefes del día (live vs baseline). Top killers" },
-  { method: "GET",  path: "/clan/reporte",        description: "Inactivos +48h y sin EXP en las últimas 30h" },
+  { method: "GET",  path: "/clan/reporte",             description: "Inactivos +48h y sin EXP en las últimas 30h" },
+  { method: "GET",  path: "/clan/whitelist",           description: "Lista de jugadores exentos del reporte de inactividad" },
+  { method: "POST", path: "/clan/whitelist/:name",     description: "Añadir jugador a la whitelist (body: { reason })" },
+  { method: "DELETE", path: "/clan/whitelist/:name",   description: "Quitar jugador de la whitelist" },
   { method: "GET",  path: "/clan/eventos/lista",  description: "Lista de incursiones, jefes y eventos disponibles" },
   { method: "GET",  path: "/clan/eventos/hoy",    description: "Evento del día sorteado a las 3:00 AM UTC" },
   { method: "GET",  path: "/clan/eventos/sortear",  description: "Fuerza un nuevo sorteo para hoy" },
@@ -76,6 +80,7 @@ app.route("/clan/noxp",        clanNoXp);
 app.route("/clan/snapshot",    clanSnapshot);
 app.route("/clan/boss-report", clanBossReport);
 app.route("/clan/reporte",    clanReporte);
+app.route("/clan/whitelist",  clanWhitelist);
 app.route("/player",           playerProfile);
 app.route("/market",           itemPrice);
 app.route("/clan/eventos",     eventosClan);
