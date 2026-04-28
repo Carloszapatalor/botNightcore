@@ -123,20 +123,46 @@ eventosClan.get("/lista", (c: Context) => {
   });
 });
 
+// eventosClan.get("/hoy", async (c) => {
+//   try {
+//     const { isNew, event } = await saveDailyEvents();
+//     const force   = c.req.query("force") === "true";
+//     const weekend = isWeekendUTC();
+//     const enviado = force ||
+//       isInTimeWindow(3, 0, 3, 59) ||
+//       (!weekend && isInTimeWindow(17, 0, 17, 59));
+
+//     if (enviado) {
+//       await sendEmbed("eventos", formatEventoEmbed(event));
+//     }
+
+//     return c.json({ date: getTodayUTCDate(), isNew, event, enviado });
+//   } catch (e) {
+//     return c.json({ error: (e as Error).message }, 500);
+//   }
+// });
+
 eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
-    const force   = c.req.query("force") === "true";
+    const force = c.req.query("force") === "true";
     const weekend = isWeekendUTC();
-    const enviado = force ||
-      isInTimeWindow(3, 0, 3, 59) ||
-      (!weekend && isInTimeWindow(17, 0, 17, 59));
+
+    const ventana3  = isInTimeWindow(3, 0, 3, 59);
+    const ventana17 = !weekend && isInTimeWindow(17, 0, 17, 59);
+    const enviado   = force || ventana3 || ventana17;
+
+    // LOG para ver qué está pasando
+    console.log({ 
+      horaUTC: new Date().toISOString(), 
+      force, weekend, ventana3, ventana17, enviado 
+    });
 
     if (enviado) {
       await sendEmbed("eventos", formatEventoEmbed(event));
     }
 
-    return c.json({ date: getTodayUTCDate(), isNew, event, enviado });
+    return c.json({ date: getTodayUTCDate(), isNew, event, enviado, debug: { force, weekend, ventana3, ventana17 } });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);
   }
