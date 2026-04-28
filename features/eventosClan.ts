@@ -155,4 +155,14 @@ eventosClan.get("/sortear", async (c) => {
   }
 });
 
+eventosClan.get("/debug-hora", (c) => {
+  const now = new Date();
+  return c.json({
+    utcHora: now.toISOString(),
+    utcHours: now.getUTCHours(),
+    utcMinutes: now.getUTCMinutes(),
+    localHora: now.toString(),
+  });
+});
+
 export default eventosClan;

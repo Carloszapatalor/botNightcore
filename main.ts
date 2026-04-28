@@ -87,17 +87,6 @@ app.route("/clan/eventos",     eventosClan);
 app.route("/rpg",              rpgCalc);
 app.route("/rpg",              rpgProfile);
 
-
-eventosClan.get("/debug-hora", (c) => {
-  const now = new Date();
-  return c.json({
-    utcHora: now.toISOString(),
-    utcHours: now.getUTCHours(),
-    utcMinutes: now.getUTCMinutes(),
-    localHora: now.toString(),
-  });
-});
-
 // Cron: sorteo de eventos a las 3:00 AM UTC
 Deno.cron("daily-event-selection", "0 3 * * *", async () => {
   await saveDailyEvents();
