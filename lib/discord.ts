@@ -173,12 +173,12 @@ export function formatQuestsEmbed(
 }
 
 export function formatRankingEmbed(
-  ranking:   { pos: number; player: string; title: string; weekExp: number }[],
+  ranking:   { pos: number; player: string; title: string; level: number; weekExp: number }[],
   weekStart: string
 ): DiscordEmbed {
   const medals = ["🥇", "🥈", "🥉"];
   const lines  = ranking.map((r) =>
-    `${medals[r.pos - 1] ?? `**${r.pos}.**`} **${r.player}** — ${r.title} | ${r.weekExp.toLocaleString()} EXP`
+    `${medals[r.pos - 1] ?? `**${r.pos}.**`} **${r.player}** — ${r.title} *(Lv. ${r.level})* | ${r.weekExp.toLocaleString()} EXP`
   );
 
   return {

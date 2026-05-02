@@ -51,4 +51,21 @@ clanWhitelist.delete("/:name", async (c) => {
   }
 });
 
+// PUT /clan/whitelist/:name — actualizar reason
+clanWhitelist.put("/:name", async (c) => {
+  const username = c.req.param("name");
+  const db = getTursoClient();
+  try {
+    const body = await c.req.json().catch(() => ({})) as { reason?: string };
+    const addedAt = new Date().toISOString().slice(0, 10);
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO inactivity_whitelist (username, reason, added_at) VALUES (?, ?, ?)`,
+      args: [username, body.reason ?? null, addedAt],
+    });
+    return c.json({ ok: true, username, reason: body.reason ?? null });
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 500);
+  }
+});
+
 export default clanWhitelist;

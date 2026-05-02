@@ -8,9 +8,6 @@ interface Evento {
   label: string;
 }
 
-// Solo disponibles sábado y domingo (UTC)
-const WEEKEND_ONLY_IDS = new Set(["GuardiansOfTheCitadel", "SkeletonWarrior", "OtherworldlyGolem"]);
-
 const INCURSIONES: Evento[] = [
   { id: "ReckoningOfTheGods",    label: "⚔️ Incursión: El ocaso de los dioses — ¡Iniciamos en 5 min!" },
   { id: "GuardiansOfTheCitadel", label: "🏰 Incursión: Guardianes de la Ciudadela — ¡Iniciamos en 5 min!" },
@@ -60,14 +57,16 @@ function selectDailyEvent(): DailyEvent {
   const now     = new Date().toISOString().slice(11, 16);
   const weekend = isWeekendUTC();
 
-  const filter = (list: Evento[]) =>
-    weekend ? list : list.filter((e) => !WEEKEND_ONLY_IDS.has(e.id));
-
-  const categories: { key: EventCategory; list: Evento[] }[] = [
-    { key: "incursion", list: filter(INCURSIONES) },
-    { key: "jefe",      list: filter(JEFES_CLAN)  },
-    { key: "evento",    list: EVENTOS_CLAN },
-  ].filter((c) => c.list.length > 0) as { key: EventCategory; list: Evento[] }[];
+  // Entre semana: solo eventos | Fin de semana: todas las listas
+  const categories: { key: EventCategory; list: Evento[] }[] = weekend
+    ? [
+        { key: "incursion", list: INCURSIONES },
+        { key: "jefe",      list: JEFES_CLAN  },
+        { key: "evento",   list: EVENTOS_CLAN },
+      ]
+    : [
+        { key: "evento", list: EVENTOS_CLAN },
+      ];
 
   const { key: category, list } = pickRandom(categories);
   const picked = pickRandom(list);
@@ -148,8 +147,8 @@ eventosClan.get("/hoy", async (c) => {
     const force = c.req.query("force") === "true";
     const weekend = isWeekendUTC();
 
-    const ventana3  = isInTimeWindow(3, 0, 3, 59);
-    const ventana17 = !weekend && isInTimeWindow(17, 0, 17, 59);
+    const ventana3  = !weekend && isInTimeWindow(3, 0, 3, 59);
+    const ventana17 = isInTimeWindow(17, 0, 17, 59);
     const enviado   = force || ventana3 || ventana17;
 
     // LOG para ver qué está pasando

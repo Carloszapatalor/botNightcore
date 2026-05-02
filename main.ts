@@ -16,6 +16,7 @@ import clanWhitelist from "./features/clanWhitelist.ts";
 import { initDb } from "./lib/turso.ts";
 
 const ENDPOINTS = [
+  { method: "GET",  path: "/health",               description: "Verifica estado de Turso e Idle API" },
   { method: "GET",  path: "/clan/members",          description: "Lista de miembros del clan con su rango" },
   { method: "GET",  path: "/clan/quests",            description: "Misiones de combate y habilidad completadas hoy (UTC)" },
   { method: "GET",  path: "/clan/experience?hours=24", description: "Top contribuidores de XP del clan (1-168h, default 24h)" },
@@ -26,6 +27,7 @@ const ENDPOINTS = [
   { method: "GET",  path: "/clan/reporte",             description: "Inactivos +48h y sin EXP en las últimas 30h" },
   { method: "GET",  path: "/clan/whitelist",           description: "Lista de jugadores exentos del reporte de inactividad" },
   { method: "POST", path: "/clan/whitelist/:name",     description: "Añadir jugador a la whitelist (body: { reason })" },
+  { method: "PUT",  path: "/clan/whitelist/:name",     description: "Actualizar reason de la whitelist (body: { reason })" },
   { method: "DELETE", path: "/clan/whitelist/:name",   description: "Quitar jugador de la whitelist" },
   { method: "GET",  path: "/clan/eventos/lista",  description: "Lista de incursiones, jefes y eventos disponibles" },
   { method: "GET",  path: "/clan/eventos/hoy",    description: "Evento del día sorteado a las 3:00 AM UTC" },
@@ -40,6 +42,30 @@ const ENDPOINTS = [
 ];
 
 const app = new Hono();
+
+app.get("/health", async (c) => {
+  const checks: Record<string, string> = {};
+
+  try {
+    const { getTursoClient } = await import("./lib/turso.ts");
+    const db = getTursoClient();
+    await db.execute(`SELECT 1`);
+    checks.turso = "ok";
+  } catch {
+    checks.turso = "error";
+  }
+
+  try {
+    const { idleGet } = await import("./lib/api.ts");
+    await idleGet<{ clanName: string }>(`/api/Clan/Nightcore`);
+    checks.idleApi = "ok";
+  } catch {
+    checks.idleApi = "error";
+  }
+
+  const allOk = Object.values(checks).every((v) => v === "ok");
+  return c.json({ status: allOk ? "ok" : "error", checks });
+});
 
 app.get("/", (c) => {
   const rows = ENDPOINTS.map(

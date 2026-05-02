@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { idleGet } from "../lib/api.ts";
 import { getClanName } from "../lib/env.ts";
 import { getTursoClient } from "../lib/turso.ts";
+import { fetchMemberProfiles } from "../lib/api.ts";
 import { formatInactividadEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
 
 const OFFLINE_HOURS = 48;
@@ -9,9 +10,7 @@ const NO_XP_HOURS   = 30;
 
 interface MemberEntry       { memberName: string; }
 interface RecruitmentData   { memberlist: MemberEntry[]; }
-interface SimpleProfile     { hoursOffline: number; taskNameOnLogout: string | null; }
-interface PlayerContribution { username: string; }
-interface ClanExpSummary    { playerContributions: PlayerContribution[]; }
+interface ClanExpSummary    { playerContributions: { username: string }[] };
 
 const clanReporte = new Hono();
 
@@ -34,14 +33,8 @@ clanReporte.get("/", async (c) => {
 
     const members = recruitment.memberlist.map((m) => m.memberName);
 
-    // perfiles simples para ver horas offline (en paralelo)
-    const profiles = await Promise.all(
-      members.map((name) =>
-        idleGet<SimpleProfile>(`/api/Player/profile/simple/${encodeURIComponent(name)}`)
-          .then((p) => ({ name, hoursOffline: p.hoursOffline, lastTask: p.taskNameOnLogout ?? null }))
-          .catch(() => ({ name, hoursOffline: -1, lastTask: null }))
-      )
-    );
+    // perfiles con la función compartida
+    const profiles = await fetchMemberProfiles(members);
 
     // inactivos: sin conexión más de 48h (excluye whitelist)
     const inactivos = profiles

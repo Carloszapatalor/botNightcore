@@ -33,7 +33,9 @@ rpgProfile.get("/ranking/semanal", async (c) => {
   const weekStart = getWeekStartUTC();
   try {
     const rows = await db.execute({
-      sql: `SELECT d.username, SUM(d.total_exp) as week_exp, COALESCE(p.title, '🌱 Buscador') as title
+      sql: `SELECT d.username, SUM(d.total_exp) as week_exp,
+                   COALESCE(p.title, '🌱 Aprendiz') as title,
+                   COALESCE(p.level, 1) as level
             FROM rpg_daily_exp d
             LEFT JOIN rpg_players p ON p.username = d.username
             WHERE d.date >= ?
@@ -42,11 +44,11 @@ rpgProfile.get("/ranking/semanal", async (c) => {
             LIMIT 5`,
       args: [weekStart],
     });
-    const ranking = (rows.rows as unknown as { username: string; week_exp: number; title: string }[])
-      .map((r, i) => ({ pos: i + 1, player: r.username, title: r.title, weekExp: r.week_exp }));
+    const ranking = (rows.rows as unknown as { username: string; week_exp: number; title: string; level: number }[])
+      .map((r, i) => ({ pos: i + 1, player: r.username, level: r.level, title: r.title, weekExp: r.week_exp }));
 
     const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(23, 57, 23, 59)) {
+    if (force || isInTimeWindow(23, 45, 23, 59)) {
       await sendEmbed("ranking", formatRankingEmbed(ranking, weekStart));
     }
 

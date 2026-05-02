@@ -77,7 +77,7 @@ clanQuests.get("/", async (c) => {
     }
 
     const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(23, 45, 23, 59)) {
+    if (force || isInTimeWindow(23, 0, 23, 14)) {
       const today = new Date().toISOString().slice(0, 10);
       await sendEmbed("quests", formatQuestsEmbed(combat, skilling, today));
     }

@@ -1,21 +1,13 @@
 import { Hono } from "hono";
-import { idleGet } from "../lib/api.ts";
+import { idleGet, fetchMemberProfiles } from "../lib/api.ts";
 import { getClanName } from "../lib/env.ts";
 
 const OFFLINE_THRESHOLD = 50;
 
-interface MemberEntry {
-  memberName: string;
-}
+interface MemberEntry { memberName: string; }
 
 interface RecruitmentData {
   memberlist: MemberEntry[];
-}
-
-interface SimpleProfile {
-  hoursOffline: number;
-  taskTypeOnLogout: number | null;
-  taskNameOnLogout: string | null;
 }
 
 const clanActivity = new Hono();
@@ -31,13 +23,7 @@ clanActivity.get("/", async (c) => {
     );
     const members = recruitment.memberlist.map((m) => m.memberName);
 
-    const profiles = await Promise.all(
-      members.map((name) =>
-        idleGet<SimpleProfile>(`/api/Player/profile/simple/${encodeURIComponent(name)}`)
-          .then((p) => ({ name, hoursOffline: p.hoursOffline, lastTask: p.taskNameOnLogout || null }))
-          .catch(() => ({ name, hoursOffline: -1, lastTask: null }))
-      )
-    );
+    const profiles = await fetchMemberProfiles(members);
 
     const inactive = profiles
       .filter((p) => p.hoursOffline >= threshold)

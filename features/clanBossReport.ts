@@ -97,7 +97,7 @@ clanBossReport.get("/", async (c) => {
   try {
     const { text, killsByBoss, topKillers } = await buildBossReport();
     const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(23, 50, 23, 59)) {
+    if (force || isInTimeWindow(23, 30, 23, 44)) {
       await sendEmbed("bosses", formatBossReportEmbed(killsByBoss, topKillers));
     }
     return c.text(text);
