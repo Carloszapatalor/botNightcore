@@ -9,21 +9,21 @@ interface Evento {
 }
 
 const INCURSIONES: Evento[] = [
-  { id: "ReckoningOfTheGods",    label: "⚔️ Incursión: El ocaso de los dioses — ¡Iniciamos en 5 min!" },
-  { id: "GuardiansOfTheCitadel", label: "🏰 Incursión: Guardianes de la Ciudadela — ¡Iniciamos en 5 min!" },
+  { id: "ReckoningOfTheGods",    label: "⚔️ Incursión: El ocaso de los dioses" },
+  { id: "GuardiansOfTheCitadel", label: "🏰 Incursión: Guardianes de la Ciudadela" },
 ];
 
 const JEFES_CLAN: Evento[] = [
-  { id: "SkeletonWarrior",   label: "💀 Jefe de clan: Guerrero Esqueleto — ¡Iniciamos en 5 min!" },
-  { id: "MalignantSpider",   label: "🕷️ Jefe de clan: Araña Maligna — ¡Iniciamos en 5 min!" },
-  { id: "OtherworldlyGolem", label: "🪨 Jefe de clan: Gólem Sobrenatural — ¡Iniciamos en 5 min!" },
+  { id: "SkeletonWarrior",   label: "💀 Jefe de clan: Guerrero Esqueleto" },
+  { id: "MalignantSpider",   label: "🕷️ Jefe de clan: Araña Maligna" },
+  { id: "OtherworldlyGolem", label: "🪨 Jefe de clan: Gólem Sobrenatural" },
 ];
 
 const EVENTOS_CLAN: Evento[] = [
-  { id: "CombatBigLootDaily", label: "💰 Evento: Gran Botín de Combate — ¡Únete ahora!" },
-  { id: "CombatBigExpDaily",  label: "✨ Evento: Gran Experiencia de Combate — ¡Únete ahora!" },
-  { id: "Crafting",           label: "🔨 Evento: Fabricación — ¡Únete ahora!" },
-  { id: "Gathering",          label: "🌿 Evento: Recolección — ¡Únete ahora!" },
+  { id: "CombatBigLootDaily", label: "💰 Evento: Gran Botín de Combate" },
+  { id: "CombatBigExpDaily",  label: "✨ Evento: Gran Experiencia de Combate" },
+  { id: "Crafting",           label: "🔨 Evento: Fabricación" },
+  { id: "Gathering",          label: "🌿 Evento: Recolección" },
 ];
 // ─────────────────────────────────────────────────────────────────
 
@@ -141,29 +141,106 @@ eventosClan.get("/lista", (c: Context) => {
 //   }
 // });
 
+// eventosClan.get("/hoy", async (c) => {
+//   try {
+//     const { isNew, event } = await saveDailyEvents();
+//     const force = c.req.query("force") === "true";
+//     const weekend = isWeekendUTC();
+
+//     const ventana3  = !weekend && isInTimeWindow(3, 0, 3, 59);
+//     const ventana17 = isInTimeWindow(17, 0, 17, 59);
+//     const enviado   = force || ventana3 || ventana17;
+
+//     // LOG para ver qué está pasando
+//     console.log({ 
+//       horaUTC: new Date().toISOString(), 
+//       force, weekend, ventana3, ventana17, enviado 
+//     });
+
+//     if (enviado) {
+//       await sendEmbed("eventos", formatEventoEmbed(event));
+//     }
+
+//     return c.json({ date: getTodayUTCDate(), isNew, event, enviado, debug: { force, weekend, ventana3, ventana17 } });
+//   } catch (e) {
+//     return c.json({ error: (e as Error).message }, 500);
+//   }
+// });
+
+
 eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
+
     const force = c.req.query("force") === "true";
-    const weekend = isWeekendUTC();
 
-    const ventana3  = !weekend && isInTimeWindow(3, 0, 3, 59);
-    const ventana17 = isInTimeWindow(17, 0, 17, 59);
-    const enviado   = force || ventana3 || ventana17;
+    // Día UTC:
+    // 0 = Domingo
+    // 1 = Lunes
+    // 2 = Martes
+    // 3 = Miércoles
+    // 4 = Jueves
+    // 5 = Viernes
+    // 6 = Sábado
+    const utcDay = new Date().getUTCDay();
 
-    // LOG para ver qué está pasando
-    console.log({ 
-      horaUTC: new Date().toISOString(), 
-      force, weekend, ventana3, ventana17, enviado 
+    // Solo martes(2) a sábado(6)
+    // porque 03 UTC todavía corresponde
+    // a la noche anterior en México
+    // (lunes-viernes México)
+    const allow3UTC = utcDay >= 2 && utcDay <= 6;
+
+    // Ventana 03 UTC
+    const ventana3 =
+      allow3UTC &&
+      isInTimeWindow(3, 0, 3, 59);
+
+    // Ventana 17 UTC (todos los días)
+    const ventana17 =
+      isInTimeWindow(17, 0, 17, 59);
+
+    const enviado =
+      force || ventana3 || ventana17;
+
+    // DEBUG
+    console.log({
+      horaUTC: new Date().toISOString(),
+      utcDay,
+      allow3UTC,
+      force,
+      ventana3,
+      ventana17,
+      enviado,
     });
 
-    if (enviado) {
-      await sendEmbed("eventos", formatEventoEmbed(event));
+    // Evita múltiples envíos
+    // si el cron llama varias veces
+    if (isNew && enviado) {
+      await sendEmbed(
+        "eventos",
+        formatEventoEmbed(event)
+      );
     }
 
-    return c.json({ date: getTodayUTCDate(), isNew, event, enviado, debug: { force, weekend, ventana3, ventana17 } });
+    return c.json({
+      date: getTodayUTCDate(),
+      isNew,
+      event,
+      enviado,
+      debug: {
+        utcDay,
+        allow3UTC,
+        force,
+        ventana3,
+        ventana17,
+      },
+    });
+
   } catch (e) {
-    return c.json({ error: (e as Error).message }, 500);
+    return c.json(
+      { error: (e as Error).message },
+      500
+    );
   }
 });
 
