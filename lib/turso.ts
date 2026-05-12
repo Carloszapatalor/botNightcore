@@ -26,6 +26,7 @@ export async function initDb() {
       event_id    TEXT NOT NULL,
       label       TEXT NOT NULL,
       selected_at TEXT NOT NULL,
+      sent        INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (event_date, category)
     )
   `);

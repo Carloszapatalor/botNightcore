@@ -47,6 +47,7 @@ export interface DailyEvent {
   id: string;
   label: string;
   selectedAt: string;
+  sent: boolean;
 }
 
 function pickRandom<T>(arr: T[]): T {
@@ -71,7 +72,7 @@ function selectDailyEvent(): DailyEvent {
   const { key: category, list } = pickRandom(categories);
   const picked = pickRandom(list);
 
-  return { category, id: picked.id, label: picked.label, selectedAt: now };
+  return { category, id: picked.id, label: picked.label, selectedAt: now, sent: false };
 }
 
 export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyEvent }> {
@@ -79,36 +80,36 @@ export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyE
   const today = getTodayUTCDate();
 
   const existing = await db.execute({
-    sql: `SELECT category, event_id, label, selected_at FROM daily_events WHERE event_date = ?`,
+    sql: `SELECT category, event_id, label, selected_at, sent FROM daily_events WHERE event_date = ?`,
     args: [today],
   });
 
   if (existing.rows.length > 0) {
     const r = existing.rows[0] as unknown as {
-      category: EventCategory; event_id: string; label: string; selected_at: string;
+      category: EventCategory; event_id: string; label: string; selected_at: string; sent: number;
     };
     return {
       isNew: false,
-      event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at },
+      event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: !!r.sent },
     };
   }
 
   const event = selectDailyEvent();
   await db.execute({
-    sql: `INSERT OR IGNORE INTO daily_events (event_date, category, event_id, label, selected_at) VALUES (?, ?, ?, ?, ?)`,
+    sql: `INSERT OR IGNORE INTO daily_events (event_date, category, event_id, label, selected_at, sent) VALUES (?, ?, ?, ?, ?, 0)`,
     args: [today, event.category, event.id, event.label, event.selectedAt],
   });
 
   const stored = await db.execute({
-    sql: `SELECT category, event_id, label, selected_at FROM daily_events WHERE event_date = ?`,
+    sql: `SELECT category, event_id, label, selected_at, sent FROM daily_events WHERE event_date = ?`,
     args: [today],
   });
   const r = stored.rows[0] as unknown as {
-    category: EventCategory; event_id: string; label: string; selected_at: string;
+    category: EventCategory; event_id: string; label: string; selected_at: string; sent: number;
   };
   return {
     isNew: true,
-    event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at },
+    event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: !!r.sent },
   };
 }
 
@@ -171,76 +172,44 @@ eventosClan.get("/lista", (c: Context) => {
 eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
-
     const force = c.req.query("force") === "true";
 
-    // Día UTC:
-    // 0 = Domingo
-    // 1 = Lunes
-    // 2 = Martes
-    // 3 = Miércoles
-    // 4 = Jueves
-    // 5 = Viernes
-    // 6 = Sábado
-    const utcDay = new Date().getUTCDay();
+    const utcDay = new Date().getUTCDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
 
-    // Solo martes(2) a sábado(6)
-    // porque 03 UTC todavía corresponde
-    // a la noche anterior en México
-    // (lunes-viernes México)
-    const allow3UTC = utcDay >= 2 && utcDay <= 6;
+    // Mar(2) a Sáb(6):允许 ventana 03 UTC
+    const allows3UTC = utcDay >= 2 && utcDay <= 6;
 
-    // Ventana 03 UTC
+    // Ventana 03 UTC (solo Mar-Sáb)
     const ventana3 =
-      allow3UTC &&
-      isInTimeWindow(3, 0, 3, 59);
+      allows3UTC && isInTimeWindow(3, 0, 3, 59);
 
     // Ventana 17 UTC (todos los días)
-    const ventana17 =
-      isInTimeWindow(17, 0, 17, 59);
+    const ventana17 = isInTimeWindow(17, 0, 17, 59);
 
-    const enviado =
+    const shouldSend =
       force || ventana3 || ventana17;
 
-    // DEBUG
-    console.log({
-      horaUTC: new Date().toISOString(),
-      utcDay,
-      allow3UTC,
-      force,
-      ventana3,
-      ventana17,
-      enviado,
-    });
+    // Evitar múltiples envíos
+    if (shouldSend && !event.sent) {
+      await sendEmbed("eventos", formatEventoEmbed(event));
 
-    // Evita múltiples envíos
-    // si el cron llama varias veces
-    if (isNew && enviado) {
-      await sendEmbed(
-        "eventos",
-        formatEventoEmbed(event)
-      );
+      const db = getTursoClient();
+      await db.execute({
+        sql: `UPDATE daily_events SET sent = 1 WHERE event_date = ? AND category = ?`,
+        args: [getTodayUTCDate(), event.category],
+      });
     }
 
     return c.json({
       date: getTodayUTCDate(),
       isNew,
       event,
-      enviado,
-      debug: {
-        utcDay,
-        allow3UTC,
-        force,
-        ventana3,
-        ventana17,
-      },
+      enviado: shouldSend && !event.sent,
+      debug: { utcDay, allows3UTC, force, ventana3, ventana17 },
     });
 
   } catch (e) {
-    return c.json(
-      { error: (e as Error).message },
-      500
-    );
+    return c.json({ error: (e as Error).message }, 500);
   }
 });
 
