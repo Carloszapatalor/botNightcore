@@ -123,52 +123,6 @@ eventosClan.get("/lista", (c: Context) => {
   });
 });
 
-// eventosClan.get("/hoy", async (c) => {
-//   try {
-//     const { isNew, event } = await saveDailyEvents();
-//     const force   = c.req.query("force") === "true";
-//     const weekend = isWeekendUTC();
-//     const enviado = force ||
-//       isInTimeWindow(3, 0, 3, 59) ||
-//       (!weekend && isInTimeWindow(17, 0, 17, 59));
-
-//     if (enviado) {
-//       await sendEmbed("eventos", formatEventoEmbed(event));
-//     }
-
-//     return c.json({ date: getTodayUTCDate(), isNew, event, enviado });
-//   } catch (e) {
-//     return c.json({ error: (e as Error).message }, 500);
-//   }
-// });
-
-// eventosClan.get("/hoy", async (c) => {
-//   try {
-//     const { isNew, event } = await saveDailyEvents();
-//     const force = c.req.query("force") === "true";
-//     const weekend = isWeekendUTC();
-
-//     const ventana3  = !weekend && isInTimeWindow(3, 0, 3, 59);
-//     const ventana17 = isInTimeWindow(17, 0, 17, 59);
-//     const enviado   = force || ventana3 || ventana17;
-
-//     // LOG para ver qué está pasando
-//     console.log({ 
-//       horaUTC: new Date().toISOString(), 
-//       force, weekend, ventana3, ventana17, enviado 
-//     });
-
-//     if (enviado) {
-//       await sendEmbed("eventos", formatEventoEmbed(event));
-//     }
-
-//     return c.json({ date: getTodayUTCDate(), isNew, event, enviado, debug: { force, weekend, ventana3, ventana17 } });
-//   } catch (e) {
-//     return c.json({ error: (e as Error).message }, 500);
-//   }
-// });
-
-
 eventosClan.get("/hoy", async (c) => {
   try {
     const { isNew, event } = await saveDailyEvents();
@@ -176,7 +130,6 @@ eventosClan.get("/hoy", async (c) => {
 
     const utcDay = new Date().getUTCDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
 
-    // Mar(2) a Sáb(6):允许 ventana 03 UTC
     const allows3UTC = utcDay >= 2 && utcDay <= 6;
 
     // Ventana 03 UTC (solo Mar-Sáb)

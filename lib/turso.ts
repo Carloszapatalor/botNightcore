@@ -17,8 +17,6 @@ export async function initDb() {
       PRIMARY KEY (username, snapshot_date)
     )
   `);
-  // DROP solo en desarrollo para migrar schema — quitar en producción
-  // await db.execute(`DROP TABLE IF EXISTS daily_events`);
   await db.execute(`
     CREATE TABLE IF NOT EXISTS daily_events (
       event_date  TEXT NOT NULL,
@@ -30,6 +28,11 @@ export async function initDb() {
       PRIMARY KEY (event_date, category)
     )
   `);
+  try {
+    await db.execute(`ALTER TABLE daily_events ADD COLUMN sent INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // columna ya existe
+  }
   await db.execute(`
     CREATE TABLE IF NOT EXISTS rpg_players (
       username     TEXT PRIMARY KEY,

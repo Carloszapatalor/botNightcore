@@ -48,7 +48,7 @@ rpgProfile.get("/ranking/semanal", async (c) => {
       .map((r, i) => ({ pos: i + 1, player: r.username, level: r.level, title: r.title, weekExp: r.week_exp }));
 
     const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(23, 45, 23, 59)) {
+    if (force || isInTimeWindow(23, 0, 23, 59)) {
       await sendEmbed("ranking", formatRankingEmbed(ranking, weekStart));
     }
 

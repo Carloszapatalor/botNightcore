@@ -8,8 +8,8 @@ import playerProfile from "./features/playerProfile.ts";
 import itemPrice from "./features/itemPrice.ts";
 import clanSnapshot from "./features/clanSnapshot.ts";
 import clanBossReport from "./features/clanBossReport.ts";
-import eventosClan, { saveDailyEvents } from "./features/eventosClan.ts";
-import rpgCalc, { calcularExpDiaria } from "./features/rpgCalc.ts";
+import eventosClan from "./features/eventosClan.ts";
+import rpgCalc from "./features/rpgCalc.ts";
 import rpgProfile from "./features/rpgProfile.ts";
 import clanReporte from "./features/clanReporte.ts";
 import clanWhitelist from "./features/clanWhitelist.ts";
@@ -112,16 +112,6 @@ app.route("/market",           itemPrice);
 app.route("/clan/eventos",     eventosClan);
 app.route("/rpg",              rpgCalc);
 app.route("/rpg",              rpgProfile);
-
-// Cron: sorteo de eventos a las 3:00 AM UTC
-Deno.cron("daily-event-selection", "0 3 * * *", async () => {
-  await saveDailyEvents();
-});
-
-// Cron: calcular EXP RPG a las 23:58 UTC (tras el snapshot de bosses)
-Deno.cron("daily-rpg-calc", "58 23 * * *", async () => {
-  await calcularExpDiaria();
-});
 
 // Inicializar DB al arrancar
 await initDb().catch((e) => console.warn("Turso not configured:", e.message));
