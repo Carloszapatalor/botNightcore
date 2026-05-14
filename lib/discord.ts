@@ -93,7 +93,7 @@ export async function sendEmbed(channel: DiscordChannel, embed: DiscordEmbed): P
 
 // ── Formateadores RPG ──────────────────────────────────────────────────────
 
-export function formatEventoEmbed(event: { label: string; category: string }): DiscordEmbed {
+export function formatEventoEmbed(event: { label: string; category: string }, horaUTC: number): DiscordEmbed {
   const categoryLabel =
     event.category === "incursion" ? "🗺️ Incursión" :
     event.category === "jefe"      ? "⚔️ Jefe de Clan" :
@@ -104,7 +104,7 @@ export function formatEventoEmbed(event: { label: string; category: string }): D
     color:       COLORS.eventos,
     fields: [
       { name: "Tipo",  value: categoryLabel, inline: true },
-      { name: "Hora",  value: "03:00 UTC",   inline: true },
+      { name: "Hora",  value: `${String(horaUTC).padStart(2, "0")}:00 UTC`,   inline: true },
     ],
     footer:    { text: "🏰 Clan Nightcore • Sistema de Eventos" },
     timestamp: new Date().toISOString(),

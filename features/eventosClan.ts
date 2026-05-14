@@ -132,19 +132,26 @@ eventosClan.get("/hoy", async (c) => {
 
     const allows3UTC = utcDay >= 2 && utcDay <= 6;
 
-    // Ventana 03 UTC (solo Mar-Sáb)
+    // Ventana 03 UTC (solo Mar-Sáb: día 2-6)
     const ventana3 =
       allows3UTC && isInTimeWindow(3, 0, 3, 59);
 
     // Ventana 17 UTC (todos los días)
     const ventana17 = isInTimeWindow(17, 0, 17, 59);
 
+    let horaUTC = 17;
+    if (ventana3 && !ventana17) {
+      horaUTC = 3;
+    } else if (ventana3 && ventana17) {
+      horaUTC = event.sent ? 17 : 3;
+    }
+
     const shouldSend =
       force || ventana3 || ventana17;
 
     // Evitar múltiples envíos
     if (shouldSend && !event.sent) {
-      await sendEmbed("eventos", formatEventoEmbed(event));
+      await sendEmbed("eventos", formatEventoEmbed(event, horaUTC));
 
       const db = getTursoClient();
       await db.execute({
@@ -158,7 +165,7 @@ eventosClan.get("/hoy", async (c) => {
       isNew,
       event,
       enviado: shouldSend && !event.sent,
-      debug: { utcDay, allows3UTC, force, ventana3, ventana17 },
+      debug: { utcDay, allows3UTC, force, ventana3, ventana17, horaUTC },
     });
 
   } catch (e) {
@@ -172,8 +179,9 @@ eventosClan.get("/sortear", async (c) => {
     const today = getTodayUTCDate();
     await db.execute({ sql: `DELETE FROM daily_events WHERE event_date = ?`, args: [today] });
     const { event } = await saveDailyEvents();
-    await sendEmbed("eventos", formatEventoEmbed(event));
-    return c.json({ date: today, event });
+    const horaUTC = 17;
+    await sendEmbed("eventos", formatEventoEmbed(event, horaUTC));
+    return c.json({ date: today, event, horaUTC });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);
   }
