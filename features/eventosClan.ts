@@ -47,7 +47,7 @@ export interface DailyEvent {
   id: string;
   label: string;
   selectedAt: string;
-  sent: boolean;
+  sent: number;
 }
 
 function pickRandom<T>(arr: T[]): T {
@@ -90,7 +90,7 @@ export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyE
     };
     return {
       isNew: false,
-      event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: !!r.sent },
+      event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: r.sent },
     };
   }
 
@@ -109,7 +109,7 @@ export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyE
   };
   return {
     isNew: true,
-    event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: !!r.sent },
+    event: { category: r.category, id: r.event_id, label: r.label, selectedAt: r.selected_at, sent: r.sent },
   };
 }
 
@@ -139,33 +139,36 @@ eventosClan.get("/hoy", async (c) => {
     // Ventana 17 UTC (todos los días)
     const ventana17 = isInTimeWindow(17, 0, 17, 59);
 
+    const maxEnvios = allows3UTC ? 2 : 1;
+    const puedeEnviar = event.sent < maxEnvios;
+
     let horaUTC = 17;
     if (ventana3 && !ventana17) {
       horaUTC = 3;
     } else if (ventana3 && ventana17) {
-      horaUTC = event.sent ? 17 : 3;
+      horaUTC = event.sent === 0 ? 3 : 17;
     }
 
-    const shouldSend =
-      force || ventana3 || ventana17;
+    const shouldSend = force || (puedeEnviar && (ventana3 || ventana17));
 
-    // Evitar múltiples envíos
-    if (shouldSend && !event.sent) {
+    if (shouldSend) {
       await sendEmbed("eventos", formatEventoEmbed(event, horaUTC));
 
       const db = getTursoClient();
       await db.execute({
-        sql: `UPDATE daily_events SET sent = 1 WHERE event_date = ? AND category = ?`,
+        sql: `UPDATE daily_events SET sent = sent + 1 WHERE event_date = ? AND category = ?`,
         args: [getTodayUTCDate(), event.category],
       });
+
+      event.sent += 1;
     }
 
     return c.json({
       date: getTodayUTCDate(),
       isNew,
       event,
-      enviado: shouldSend && !event.sent,
-      debug: { utcDay, allows3UTC, force, ventana3, ventana17, horaUTC },
+      enviado: shouldSend,
+      debug: { utcDay, allows3UTC, force, ventana3, ventana17, horaUTC, maxEnvios, puedeEnviar },
     });
 
   } catch (e) {
