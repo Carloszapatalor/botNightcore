@@ -142,14 +142,14 @@ eventosClan.get("/hoy", async (c) => {
     const maxEnvios = allows3UTC ? 2 : 1;
     const puedeEnviar = event.sent < maxEnvios;
 
+    const shouldSend = force || (puedeEnviar && (ventana3 || ventana17));
+
     let horaUTC = 17;
     if (ventana3 && !ventana17) {
       horaUTC = 3;
-    } else if (ventana3 && ventana17) {
-      horaUTC = event.sent === 0 ? 3 : 17;
+    } else if (ventana17) {
+      horaUTC = 17;
     }
-
-    const shouldSend = force || (puedeEnviar && (ventana3 || ventana17));
 
     if (shouldSend) {
       await sendEmbed("eventos", formatEventoEmbed(event, horaUTC));
