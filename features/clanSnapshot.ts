@@ -38,7 +38,6 @@ export async function takeSnapshot(): Promise<{ isNew: boolean; date: string; sa
   const today = getTodayUTC();
   const db = getTursoClient();
 
-  // comprobar si ya existe baseline para hoy
   const existing = await db.execute({
     sql: `SELECT COUNT(*) as cnt FROM pvm_snapshots WHERE snapshot_date = ?`,
     args: [today],
@@ -49,7 +48,6 @@ export async function takeSnapshot(): Promise<{ isNew: boolean; date: string; sa
     return { isNew: false, date: today, saved: 0 };
   }
 
-  // primer snapshot del día → guardar como baseline
   const profiles = await fetchClanProfiles();
   for (const profile of profiles) {
     await db.execute({

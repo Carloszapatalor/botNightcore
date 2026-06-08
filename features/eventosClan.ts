@@ -72,7 +72,7 @@ function selectDailyEvent(): DailyEvent {
   const { key: category, list } = pickRandom(categories);
   const picked = pickRandom(list);
 
-  return { category, id: picked.id, label: picked.label, selectedAt: now, sent: false };
+  return { category, id: picked.id, label: picked.label, selectedAt: now, sent: 0 };
 }
 
 export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyEvent }> {

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
+import { idleGet } from "../lib/api.ts";
 import { getTursoClient } from "../lib/turso.ts";
 import { getClanName } from "../lib/env.ts";
 import { fetchClanProfiles, getTodayUTC } from "./clanSnapshot.ts";
-import { fetchTodayLogs } from "./clanQuests.ts";
 import {
   BOSS_EXP,
   EXP_EVENTO,
@@ -19,15 +19,45 @@ interface DailyExpEntry {
   eventExp:  number;
 }
 
+interface Log {
+  memberUsername: string;
+  message: string;
+  timestamp: string;
+}
+
+const PAGE_SIZE = 100;
+
+async function fetchTodayLogs(clanName: string): Promise<Log[]> {
+  const today = getTodayUTC();
+  const result: Log[] = [];
+  let skip = 0;
+
+  while (true) {
+    const page = await idleGet<Log[]>(
+      `/api/Clan/logs/clan/${encodeURIComponent(clanName)}?skip=${skip}&limit=${PAGE_SIZE}`
+    );
+    if (page.length === 0) break;
+
+    for (const log of page) {
+      const logDate = log.timestamp.slice(0, 10);
+      if (logDate === today) result.push(log);
+      else if (logDate < today) return result;
+    }
+
+    if (page.length < PAGE_SIZE) break;
+    skip += PAGE_SIZE;
+  }
+
+  return result;
+}
+
 export async function calcularExpDiaria(): Promise<{ date: string; processed: number }> {
   const today    = getTodayUTC();
   const clanName = getClanName();
   const db       = getTursoClient();
 
-  // ── 1. Logs del día ───────────────────────────────────────────
   const logs = await fetchTodayLogs(clanName);
 
-  // ── 2. Quests ─────────────────────────────────────────────────
   const questExp: Record<string, number> = {};
   for (const log of logs) {
     const player =
@@ -40,7 +70,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
     questExp[player] = (questExp[player] ?? 0) + exp;
   }
 
-  // ── 3. Boss kills (baseline vs live) ─────────────────────────
   const baselineRows = await db.execute({
     sql: `SELECT username, pvm_stats FROM pvm_snapshots WHERE snapshot_date = ?`,
     args: [today],
@@ -63,7 +92,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
     if (exp > 0) bossExp[profile.username] = exp;
   }
 
-  // ── 4. Evento/incursión del día ───────────────────────────────
   const eventRow = await db.execute({
     sql: `SELECT event_id, category FROM daily_events WHERE event_date = ?`,
     args: [today],
@@ -82,7 +110,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
     }
   }
 
-  // ── 5. Consolidar y guardar ───────────────────────────────────
   const allPlayers = new Set([
     ...Object.keys(questExp),
     ...Object.keys(bossExp),
@@ -100,7 +127,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
     };
     const total = entry.questExp + entry.bossExp + entry.eventExp;
 
-    // guardar desglose diario
     await db.execute({
       sql: `INSERT OR REPLACE INTO rpg_daily_exp
               (username, date, quest_exp, boss_exp, event_exp, total_exp)
@@ -108,7 +134,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
       args: [username, today, entry.questExp, entry.bossExp, entry.eventExp, total],
     });
 
-    // total = suma de TODOS los días en rpg_daily_exp (idempotente ante re-ejecuciones)
     const allExp = await db.execute({
       sql: `SELECT SUM(total_exp) as lifetime FROM rpg_daily_exp WHERE username = ?`,
       args: [username],
@@ -127,7 +152,6 @@ export async function calcularExpDiaria(): Promise<{ date: string; processed: nu
   return { date: today, processed };
 }
 
-// Endpoint de disparo manual para pruebas
 const rpgCalc = new Hono();
 
 rpgCalc.get("/calcular", async (c) => {

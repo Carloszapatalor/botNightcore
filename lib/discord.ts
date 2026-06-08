@@ -1,4 +1,4 @@
-type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking" | "inactividad";
+type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking" | "inactividad" | "stats";
 
 interface DiscordField {
   name: string;
@@ -21,6 +21,7 @@ const WEBHOOK_KEYS: Record<DiscordChannel, string> = {
   quests:      "DISCORD_WEBHOOK_QUESTS",
   ranking:     "DISCORD_WEBHOOK_RANKING",
   inactividad: "DISCORD_WEBHOOK_INACTIVIDAD",
+  stats:       "DISCORD_WEBHOOK_STATS",
 };
 
 const COLORS: Record<DiscordChannel, number> = {
@@ -29,6 +30,7 @@ const COLORS: Record<DiscordChannel, number> = {
   quests:      0x0099DD,
   ranking:     0xFFD700,
   inactividad: 0xFF6600,
+  stats:       0x00DD88,
 };
 
 // IDs de rol a mencionar por canal (opcional — si no está configurado, no menciona)
@@ -36,6 +38,7 @@ const ROLE_KEYS: Partial<Record<DiscordChannel, string>> = {
   eventos:     "DISCORD_ROLE_EVENTOS",
   bosses:      "DISCORD_ROLE_BOSSES",
   inactividad: "DISCORD_ROLE_INACTIVIDAD",
+  stats:       "DISCORD_ROLE_STATS",
 };
 
 function getRoleMention(channel: DiscordChannel): string {
@@ -186,6 +189,93 @@ export function formatRankingEmbed(
     description: `Semana del **${weekStart}**\n\n${lines.join("\n")}`,
     color:       COLORS.ranking,
     footer:    { text: "🏰 Clan Nightcore • ¡Sigue luchando para escalar el ranking!" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatStreakAnnouncementEmbed(player: string, days: number): DiscordEmbed {
+  const milestone = days >= 30 ? "🏆" : days >= 14 ? "🔥" : "⚡";
+  return {
+    title:       `${milestone} ¡RACHA ÉPICA!`,
+    description: `**${player}** lleva **${days} días consecutivos** activo en el clan.`,
+    color:       COLORS.stats,
+    footer:    { text: "🏰 Clan Nightcore • Constancia es poder" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatDailyXpEmbed(
+  totalXp: number,
+  topContributors: { username: string; xp_gained: number }[]
+): DiscordEmbed {
+  const today = new Date().toISOString().slice(0, 10);
+  const topText = topContributors.slice(0, 5).map((p, i) => {
+    const medals = ["🥇", "🥈", "🥉"];
+    const medal = medals[i] ?? `**${i + 1}.**`;
+    return `${medal} **${p.username}** — ${p.xp_gained.toLocaleString()} XP`;
+  }).join("\n");
+
+  return {
+    title:       `📈 RESUMEN DE XP — ${today}`,
+    description: `El clan ganó **${totalXp.toLocaleString()} XP** hoy`,
+    color:       COLORS.stats,
+    fields: [
+      { name: "🏆 Top Contribuidores", value: topText || "*Sin actividad hoy*", inline: false },
+    ],
+    footer:    { text: "🏰 Clan Nightcore • Sistema de métricas" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatRankUpEmbed(prevRank: number, newRank: number): DiscordEmbed {
+  const gained = prevRank - newRank;
+  return {
+    title:       `🏆 ¡SUBIMOS EN EL RANKING!`,
+    description: `El clan avanzó **${gained} posición${gained > 1 ? "es" : ""}** — ahora somos **#${newRank}**`,
+    color:       COLORS.stats,
+    fields: [
+      { name: "Antes", value: `#${prevRank}`, inline: true },
+      { name: "Ahora", value: `#${newRank}`, inline: true },
+    ],
+    footer:    { text: "🏰 Clan Nightcore • ¡Sigamos escalando!" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatRankGoalEmbed(
+  currentRank: number,
+  targetRank: number,
+  xpNeeded: number
+): DiscordEmbed {
+  return {
+    title:       `🎯 META EN VISTA`,
+    description: `Estamos a **${xpNeeded.toLocaleString()} XP** del top **${targetRank}**`,
+    color:       COLORS.stats,
+    fields: [
+      { name: "Rank actual", value: `#${currentRank}`, inline: true },
+      { name: "Objetivo",    value: `#${targetRank}`,  inline: true },
+    ],
+    footer:    { text: "🏰 Clan Nightcore • ¡Podemos lograrlo!" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatExperienceEmbed(
+  date: string,
+  totalXp: number,
+  contributors: { username: string; xp_gained: number; pct: number }[]
+): DiscordEmbed {
+  const medals = ["🥇", "🥈", "🥉"];
+  const topText = contributors.slice(0, 10).map((c, i) => {
+    const medal = medals[i] ?? `**${i + 1}.**`;
+    return `${medal} **${c.username}** — ${c.xp_gained.toLocaleString()} XP — ${c.pct.toFixed(1)}%`;
+  }).join("\n");
+
+  return {
+    title:       `📊 TOP XP DEL DÍA — ${date}`,
+    description: `El clan ganó **${totalXp.toLocaleString()} XP** en total\n\n${topText}`,
+    color:       COLORS.stats,
+    footer:    { text: "🏰 Clan Nightcore • Reporte diario" },
     timestamp: new Date().toISOString(),
   };
 }

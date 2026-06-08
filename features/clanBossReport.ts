@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getTursoClient } from "../lib/turso.ts";
-import { fetchClanProfiles, getTodayUTC } from "./clanSnapshot.ts";
-import { formatBossReportEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
+import { fetchClanProfiles, getTodayUTC, takeSnapshot } from "./clanSnapshot.ts";
+import { formatBossReportEmbed, sendEmbed } from "../lib/discord.ts";
 
 type PvmStats = Record<string, number>;
 
@@ -21,15 +21,21 @@ export async function buildBossReport(): Promise<BossReportData> {
   const now = new Date().toISOString().slice(11, 16); // HH:MM
   const db = getTursoClient();
 
-  // cargar baseline de hoy
-  const baselineRows = await db.execute({
+  // cargar baseline de hoy (auto-crear si no existe)
+  let baselineRows = await db.execute({
     sql: `SELECT username, pvm_stats FROM pvm_snapshots WHERE snapshot_date = ?`,
     args: [today],
   });
 
   if (baselineRows.rows.length === 0) {
-    const msg = `No hay baseline para hoy (${today}).\nEjecuta /clan/snapshot primero para establecer el punto de inicio.`;
-    return { text: msg, killsByBoss: new Map(), topKillers: [] };
+    await takeSnapshot();
+    baselineRows = await db.execute({
+      sql: `SELECT username, pvm_stats FROM pvm_snapshots WHERE snapshot_date = ?`,
+      args: [today],
+    });
+    if (baselineRows.rows.length === 0) {
+      return { text: `No se pudo crear el baseline para hoy (${today}).`, killsByBoss: new Map(), topKillers: [] };
+    }
   }
 
   const baseline = new Map<string, PvmStats>();
@@ -96,10 +102,7 @@ const clanBossReport = new Hono();
 clanBossReport.get("/", async (c) => {
   try {
     const { text, killsByBoss, topKillers } = await buildBossReport();
-    const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(23, 0, 23, 59)) {
-      await sendEmbed("bosses", formatBossReportEmbed(killsByBoss, topKillers));
-    }
+    await sendEmbed("bosses", formatBossReportEmbed(killsByBoss, topKillers));
     return c.text(text);
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);

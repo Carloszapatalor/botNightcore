@@ -1,49 +1,42 @@
 import { Hono } from "hono";
-import { idleGet } from "../lib/api.ts";
-import { getClanName } from "../lib/env.ts";
+import { getTursoClient } from "../lib/turso.ts";
+import { syncMemberXp } from "./syncXp.ts";
+import { formatExperienceEmbed, sendEmbed } from "../lib/discord.ts";
 
-interface SkillData {
-  experience: number;
-  level: number;
-}
-
-interface PlayerContribution {
-  username: string;
-  totalExperience: number;
-  skills: Record<string, SkillData>;
-}
-
-interface ClanExperienceSummary {
-  clanName: string;
-  periodHours: number;
-  totalExperience: number;
-  playerContributions: PlayerContribution[];
+function getYesterdayUTC(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 const clanExperience = new Hono();
 
 clanExperience.get("/", async (c) => {
-  const hours = Number(c.req.query("hours") ?? 24);
-
   try {
-    const clanName = getClanName();
-    const data = await idleGet<ClanExperienceSummary>(
-      `/api/Clan/${encodeURIComponent(clanName)}/experience?hours=${hours}`
-    );
+    await syncMemberXp();
+    const db = getTursoClient();
+    const yesterday = getYesterdayUTC();
 
-    const topContributors = [...data.playerContributions]
-      .sort((a, b) => b.totalExperience - a.totalExperience)
-      .map((p) => ({
-        player: p.username,
-        xp: p.totalExperience,
-        topSkill: Object.entries(p.skills).sort((a, b) => b[1].experience - a[1].experience)[0]?.[0] ?? "N/A",
-      }));
+    const rows = await db.execute({
+      sql: `SELECT username, xp_gained FROM member_daily_xp WHERE date = ? ORDER BY xp_gained DESC`,
+      args: [yesterday],
+    });
+
+    const members = rows.rows as unknown as { username: string; xp_gained: number }[];
+    const totalXp = members.reduce((s, m) => s + m.xp_gained, 0);
+
+    const contributors = members.map((m) => ({
+      username: m.username,
+      xp_gained: m.xp_gained,
+      pct: totalXp > 0 ? (m.xp_gained / totalXp) * 100 : 0,
+    }));
+
+    await sendEmbed("stats", formatExperienceEmbed(yesterday, totalXp, contributors));
 
     return c.json({
-      clan: data.clanName,
-      hours: data.periodHours,
-      totalXP: data.totalExperience,
-      contributors: topContributors,
+      date: yesterday,
+      totalXp,
+      contributors: contributors.slice(0, 10),
     });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);

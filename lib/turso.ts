@@ -60,4 +60,91 @@ export async function initDb() {
       added_at   TEXT NOT NULL
     )
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS xp_snapshots (
+      username    TEXT NOT NULL,
+      snapshot_at TEXT NOT NULL,
+      total_xp    REAL NOT NULL,
+      skill_xp    TEXT,
+      PRIMARY KEY (username, snapshot_at)
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS member_daily_xp (
+      username   TEXT NOT NULL,
+      date       TEXT NOT NULL,
+      xp_gained  REAL NOT NULL DEFAULT 0,
+      was_active INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (username, date)
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS member_metrics (
+      username          TEXT PRIMARY KEY,
+      streak_current    INTEGER NOT NULL DEFAULT 0,
+      streak_best       INTEGER NOT NULL DEFAULT 0,
+      days_active_7     INTEGER NOT NULL DEFAULT 0,
+      days_active_30    INTEGER NOT NULL DEFAULT 0,
+      xp_week           REAL NOT NULL DEFAULT 0,
+      xp_month          REAL NOT NULL DEFAULT 0,
+      contrib_pct_day   REAL NOT NULL DEFAULT 0,
+      contrib_pct_week  REAL NOT NULL DEFAULT 0,
+      momentum          REAL NOT NULL DEFAULT 0,
+      trend             TEXT NOT NULL DEFAULT 'stable',
+      last_computed     TEXT NOT NULL
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS clan_rank_history (
+      recorded_at   TEXT NOT NULL PRIMARY KEY,
+      rank_position INTEGER,
+      total_xp_24h  REAL NOT NULL DEFAULT 0,
+      member_count  INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS seasons (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date   TEXT NOT NULL,
+      is_active  INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS daily_goals (
+      username  TEXT NOT NULL,
+      date      TEXT NOT NULL,
+      easy_done INTEGER NOT NULL DEFAULT 0,
+      med_done  INTEGER NOT NULL DEFAULT 0,
+      hard_done INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (username, date)
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS player_badges (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      username   TEXT NOT NULL,
+      badge_id   TEXT NOT NULL,
+      badge_name TEXT NOT NULL,
+      badge_emoji TEXT NOT NULL,
+      earned_at  TEXT NOT NULL,
+      season_id  INTEGER NOT NULL
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS clan_rank_goal (
+      id          INTEGER PRIMARY KEY DEFAULT 1,
+      target_rank INTEGER NOT NULL DEFAULT 100,
+      start_rank  INTEGER,
+      start_date  TEXT
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS app_cache (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
 }

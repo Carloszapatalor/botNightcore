@@ -3,7 +3,7 @@ import { idleGet } from "../lib/api.ts";
 import { getClanName } from "../lib/env.ts";
 import { getTursoClient } from "../lib/turso.ts";
 import { fetchMemberProfiles } from "../lib/api.ts";
-import { formatInactividadEmbed, isInTimeWindow, sendEmbed } from "../lib/discord.ts";
+import { formatInactividadEmbed, sendEmbed } from "../lib/discord.ts";
 
 const OFFLINE_HOURS = 48;
 const NO_XP_HOURS   = 30;
@@ -50,10 +50,7 @@ clanReporte.get("/", async (c) => {
     const withXp = new Set(experience.playerContributions.map((p) => p.username));
     const sinExp = members.filter((name) => !withXp.has(name) && !whitelist.has(name));
 
-    const force = c.req.query("force") === "true";
-    if (force || isInTimeWindow(12, 0, 12, 15)) {
-      await sendEmbed("inactividad", formatInactividadEmbed(inactivos, sinExp, members.length));
-    }
+    await sendEmbed("inactividad", formatInactividadEmbed(inactivos, sinExp, members.length));
 
     return c.json({
       totalMembers: members.length,
