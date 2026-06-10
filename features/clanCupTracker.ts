@@ -238,7 +238,7 @@ cupRouter.get("/cup-weekly", async (c) => {
       return c.json({ ok: true, cached: true });
     }
 
-    await sendEmbed("stats", embed);
+    await sendEmbed("cup", embed);
     await db.execute({
       sql: `INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('cup_weekly', ?, ?)`,
       args: [signature, new Date().toISOString()],

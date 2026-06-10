@@ -1,4 +1,4 @@
-type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking" | "inactividad" | "stats";
+type DiscordChannel = "eventos" | "bosses" | "quests" | "ranking" | "inactividad" | "stats" | "cup";
 
 interface DiscordField {
   name: string;
@@ -22,6 +22,7 @@ const WEBHOOK_KEYS: Record<DiscordChannel, string> = {
   ranking:     "DISCORD_WEBHOOK_RANKING",
   inactividad: "DISCORD_WEBHOOK_INACTIVIDAD",
   stats:       "DISCORD_WEBHOOK_STATS",
+  cup:         "DISCORD_WEBHOOK_STATS",
 };
 
 const COLORS: Record<DiscordChannel, number> = {
@@ -31,6 +32,7 @@ const COLORS: Record<DiscordChannel, number> = {
   ranking:     0xFFD700,
   inactividad: 0xFF6600,
   stats:       0x00DD88,
+  cup:         0xFFD700,
 };
 
 // IDs de rol a mencionar por canal (opcional — si no está configurado, no menciona)
@@ -39,6 +41,7 @@ const ROLE_KEYS: Partial<Record<DiscordChannel, string>> = {
   bosses:      "DISCORD_ROLE_BOSSES",
   inactividad: "DISCORD_ROLE_INACTIVIDAD",
   stats:       "DISCORD_ROLE_STATS",
+  cup:         "DISCORD_ROLE_CUP",
 };
 
 function getRoleMention(channel: DiscordChannel): string {
