@@ -50,29 +50,40 @@ export interface DailyEvent {
   sent: number;
 }
 
+function getEpochWeek(): number {
+  return Math.floor(Date.now() / 604800000);
+}
+
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function selectBossByWeek(week: number): Evento {
+  const skeleton = JEFES_CLAN[0];
+  const malignant = JEFES_CLAN[1];
+  const golem = JEFES_CLAN[2];
+  if (week % 3 === 2) return golem;
+  const nonGolemCount = week - Math.floor(week / 3);
+  return nonGolemCount % 2 === 0 ? skeleton : malignant;
 }
 
 function selectDailyEvent(): DailyEvent {
   const now     = new Date().toISOString().slice(11, 16);
   const weekend = isWeekendUTC();
+  const week    = getEpochWeek();
 
-  // Entre semana: solo eventos | Fin de semana: todas las listas
-  const categories: { key: EventCategory; list: Evento[] }[] = weekend
-    ? [
-        { key: "incursion", list: INCURSIONES },
-        { key: "jefe",      list: JEFES_CLAN  },
-        { key: "evento",   list: EVENTOS_CLAN },
-      ]
-    : [
-        { key: "evento", list: EVENTOS_CLAN },
-      ];
+  if (weekend) {
+    const icono = pickRandom(["incursion", "jefe"]);
+    if (icono === "incursion") {
+      const picked = INCURSIONES[week % 2];
+      return { category: "incursion", id: picked.id, label: picked.label, selectedAt: now, sent: 0 };
+    }
+    const picked = selectBossByWeek(week);
+    return { category: "jefe", id: picked.id, label: picked.label, selectedAt: now, sent: 0 };
+  }
 
-  const { key: category, list } = pickRandom(categories);
-  const picked = pickRandom(list);
-
-  return { category, id: picked.id, label: picked.label, selectedAt: now, sent: 0 };
+  const picked = pickRandom(EVENTOS_CLAN);
+  return { category: "evento", id: picked.id, label: picked.label, selectedAt: now, sent: 0 };
 }
 
 export async function saveDailyEvents(): Promise<{ isNew: boolean; event: DailyEvent }> {
