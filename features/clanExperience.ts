@@ -31,12 +31,29 @@ clanExperience.get("/", async (c) => {
       pct: totalXp > 0 ? (m.xp_gained / totalXp) * 100 : 0,
     }));
 
+    const signature = `${yesterday}:${totalXp}`;
+
+    const cached = await db.execute({
+      sql: `SELECT value FROM app_cache WHERE key = 'experience'`,
+    });
+    const lastSig = cached.rows.length > 0
+      ? (cached.rows[0] as unknown as { value: string }).value
+      : "";
+    if (signature && signature === lastSig) {
+      return c.json({ ok: true, cached: true });
+    }
+
     await sendEmbed("stats", formatExperienceEmbed(yesterday, totalXp, contributors));
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('experience', ?, ?)`,
+      args: [signature, new Date().toISOString()],
+    });
 
     return c.json({
       date: yesterday,
       totalXp,
       contributors: contributors.slice(0, 10),
+      cached: false,
     });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);

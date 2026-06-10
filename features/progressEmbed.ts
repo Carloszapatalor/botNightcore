@@ -29,7 +29,7 @@ interface LeaderboardProfile {
   };
 }
 
-export async function getRankProgressEmbed(): Promise<DiscordEmbed> {
+export async function getRankProgressEmbed(): Promise<{ embed: DiscordEmbed; signature: string }> {
   const db = getTursoClient();
   const clanName = getClanName();
 
@@ -158,7 +158,7 @@ export async function getRankProgressEmbed(): Promise<DiscordEmbed> {
       ? `Rank **#${currentRank}** — El clan ganó **${fmtNum(xpDisplay)} XP** en las últimas 24h`
       : "Corre `GET /stats/sync-now` para cargar datos del clan.";
 
-  return {
+  const rankEmbed: DiscordEmbed = {
     title: `🏰 PROGRESO DEL CLAN — Hacia el Top #${targetRank}`,
     description,
     color: 0x00DD88,
@@ -166,9 +166,13 @@ export async function getRankProgressEmbed(): Promise<DiscordEmbed> {
     footer: { text: "🏰 Clan Nightcore • Sistema de progreso" },
     timestamp: new Date().toISOString(),
   };
+
+  const signature = `${currentRank ?? "null"}:${targetRank}:${xpDisplay}`;
+
+  return { embed: rankEmbed, signature };
 }
 
-export async function getGoalsProgressEmbed(date?: string): Promise<DiscordEmbed> {
+export async function getGoalsProgressEmbed(date?: string): Promise<{ embed: DiscordEmbed; signature: string }> {
   const db = getTursoClient();
   const day = date ?? new Date().toISOString().slice(0, 10);
 
@@ -182,11 +186,14 @@ export async function getGoalsProgressEmbed(date?: string): Promise<DiscordEmbed
     todosLosMiembros = recruitment.memberlist.map((m) => m.memberName);
   } catch {
     return {
-      title: `🎯 META DEL CLAN — ${day}`,
-      description: "Error al obtener miembros del clan.",
-      color: 0x00DD88,
-      footer: { text: "🏰 Clan Nightcore" },
-      timestamp: new Date().toISOString(),
+      embed: {
+        title: `🎯 META DEL CLAN — ${day}`,
+        description: "Error al obtener miembros del clan.",
+        color: 0x00DD88,
+        footer: { text: "🏰 Clan Nightcore" },
+        timestamp: new Date().toISOString(),
+      },
+      signature: "",
     };
   }
 
@@ -257,7 +264,7 @@ export async function getGoalsProgressEmbed(date?: string): Promise<DiscordEmbed
     });
   }
 
-  return {
+  const goalsEmbed: DiscordEmbed = {
     title: `🎯 META DEL CLAN — ${day}`,
     description: `Objetivo: cada miembro aporta **${fmtNum(META_XP)} XP**\n${totalMiembros} miembros → **${fmtNum(metaClan)} XP** totales`,
     color: 0x00DD88,
@@ -265,4 +272,8 @@ export async function getGoalsProgressEmbed(date?: string): Promise<DiscordEmbed
     footer: { text: "🏰 Clan Nightcore • ¡Cada XP cuenta!" },
     timestamp: new Date().toISOString(),
   };
+
+  const signature = `${day}:${totalMiembros}:${totalXp}:${completados.length}:${enProgreso.length}:${sinActividad.length}`;
+
+  return { embed: goalsEmbed, signature };
 }

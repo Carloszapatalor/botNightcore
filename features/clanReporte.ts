@@ -50,12 +50,30 @@ clanReporte.get("/", async (c) => {
     const withXp = new Set(experience.playerContributions.map((p) => p.username));
     const sinExp = members.filter((name) => !withXp.has(name) && !whitelist.has(name));
 
+    const today = new Date().toISOString().slice(0, 10);
+    const signature = `${today}:${inactivos.length}:${sinExp.length}`;
+
+    const cached = await db.execute({
+      sql: `SELECT value FROM app_cache WHERE key = 'reporte'`,
+    });
+    const lastSig = cached.rows.length > 0
+      ? (cached.rows[0] as unknown as { value: string }).value
+      : "";
+    if (signature && signature === lastSig) {
+      return c.json({ ok: true, cached: true });
+    }
+
     await sendEmbed("inactividad", formatInactividadEmbed(inactivos, sinExp, members.length));
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('reporte', ?, ?)`,
+      args: [signature, new Date().toISOString()],
+    });
 
     return c.json({
       totalMembers: members.length,
       inactivos48h: { count: inactivos.length, players: inactivos },
       sinExp30h:    { count: sinExp.length,    players: sinExp },
+      cached: false,
     });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);

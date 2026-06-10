@@ -102,8 +102,28 @@ const clanBossReport = new Hono();
 clanBossReport.get("/", async (c) => {
   try {
     const { text, killsByBoss, topKillers } = await buildBossReport();
+    const today = new Date().toISOString().slice(0, 10);
+    const totalKills = topKillers.reduce((s, k) => s + k.total, 0);
+    const signature = `${today}:${topKillers.length}:${totalKills}`;
+
+    const db = getTursoClient();
+    const cached = await db.execute({
+      sql: `SELECT value FROM app_cache WHERE key = 'boss_report'`,
+    });
+    const lastSig = cached.rows.length > 0
+      ? (cached.rows[0] as unknown as { value: string }).value
+      : "";
+    if (signature && signature === lastSig) {
+      return c.json({ ok: true, cached: true });
+    }
+
     await sendEmbed("bosses", formatBossReportEmbed(killsByBoss, topKillers));
-    return c.text(text);
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('boss_report', ?, ?)`,
+      args: [signature, new Date().toISOString()],
+    });
+
+    return c.json({ ok: true, cached: false, kills: totalKills });
   } catch (e) {
     return c.json({ error: (e as Error).message }, 500);
   }
