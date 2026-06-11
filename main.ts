@@ -34,6 +34,7 @@ const ENDPOINTS = [
   { method: "GET",  path: "/stats/rank-progress",     description: "Progreso del clan hacia top 100 (embed Discord)" },
   { method: "GET",  path: "/stats/goals-progress", description: "Progreso de metas del día con niveles (embed Discord)" },
   { method: "GET",  path: "/clan/cup-weekly",       description: "Objetivos semanales de la copa (embed Discord)" },
+  { method: "GET",  path: "/clan/cup-status",       description: "Estado actual de la copa: puntos y posiciones (embed Discord)" },
 ];
 
 const app = new Hono();

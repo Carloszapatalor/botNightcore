@@ -22,7 +22,7 @@ const WEBHOOK_KEYS: Record<DiscordChannel, string> = {
   ranking:     "DISCORD_WEBHOOK_RANKING",
   inactividad: "DISCORD_WEBHOOK_INACTIVIDAD",
   stats:       "DISCORD_WEBHOOK_STATS",
-  cup:         "DISCORD_WEBHOOK_STATS",
+  cup:         "DISCORD_WEBHOOK_INACTIVIDAD",
 };
 
 const COLORS: Record<DiscordChannel, number> = {

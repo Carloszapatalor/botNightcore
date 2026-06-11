@@ -28,6 +28,15 @@ interface TopClansResponse {
   topTimeClans: TopClanCategory[];
 }
 
+const REWARDS: Record<number, number> = {
+  1: 5000, 2: 3500, 3: 3000, 4: 2500, 5: 2000,
+  6: 1500, 7: 1000, 8: 750, 9: 500, 10: 250,
+};
+
+function getReward(rank: number): number {
+  return REWARDS[rank] ?? 0;
+}
+
 const CATEGORY_ICONS: Record<string, string> = {
   Mining: "⛏️",
   Woodcutting: "🌲",
@@ -78,6 +87,12 @@ const TARGET_CATEGORIES = [
   "Mining", "Exterminating", "Farming",
   "Fishing", "Woodcutting", "SkeletonWarriorKills",
 ];
+
+const SKILL_OBJECTIVES = new Set([
+  "Crafting", "Woodcutting", "Carpentry", "Fishing", "Cooking",
+  "Mining", "Smithing", "Foraging", "Farming", "Agility",
+  "Plundering", "Enchanting", "Brewing", "Exterminating",
+]);
 
 function getIcon(objective: string): string {
   return CATEGORY_ICONS[objective] ?? "📋";
@@ -248,5 +263,75 @@ cupRouter.get("/cup-weekly", async (c) => {
     return c.json({ error: (e as Error).message }, 500);
   }
 });
+
+cupRouter.get("/cup-status", async (c) => {
+  try {
+    const embed = await getCupStatusEmbed();
+    const sent = await sendEmbed("cup", embed);
+    if (!sent) {
+      return c.json({ ok: false, error: "No se pudo enviar a Discord. Verifica DISCORD_WEBHOOK_STATS." }, 500);
+    }
+    return c.json({ ok: true, embed, sent });
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 500);
+  }
+});
+
+async function getCupStatusEmbed(): Promise<DiscordEmbed> {
+  const standings = await fetchStandings();
+
+  const allCategories = standings
+    .map((s) => ({
+      objective: s.objective,
+      rank: s.rank,
+      score: s.score ?? 0,
+      reward: getReward(s.rank),
+    }))
+    .sort((a, b) => a.rank - b.rank);
+
+  const totalRewards = allCategories.reduce((s, c) => s + c.reward, 0);
+
+  const skills = allCategories.filter((c) => SKILL_OBJECTIVES.has(c.objective)).slice(0, 5);
+  const combat = allCategories.filter((c) => !SKILL_OBJECTIVES.has(c.objective)).slice(0, 5);
+
+  const fields: { name: string; value: string; inline: boolean }[] = [];
+
+  if (skills.length > 0) {
+    const lines = skills.map((cat) => {
+      const label = cat.reward > 0 ? `Puntos: ${fmtNum(cat.reward)}` : `Puntuación: ${fmtNum(cat.score)}`;
+      return `**${getIcon(cat.objective)} ${getNameES(cat.objective)} — #${cat.rank}** • ${label}`;
+    }).join("\n");
+    fields.push({ name: "⚔️ TOP 5 HABILIDADES", value: lines, inline: false });
+  }
+
+  if (combat.length > 0) {
+    const lines = combat.map((cat) => {
+      const label = cat.reward > 0 ? `Puntos: ${fmtNum(cat.reward)}` : `Puntuación: ${fmtNum(cat.score)}`;
+      return `**${getIcon(cat.objective)} ${getNameES(cat.objective)} — #${cat.rank}** • ${label}`;
+    }).join("\n");
+    fields.push({ name: "⚔️ TOP 5 COMBATE", value: lines, inline: false });
+  }
+
+  if (allCategories.length > 10) {
+    fields.push({
+      name: `📋 +${allCategories.length - 10} más`,
+      value: "Mostrando las 5 mejores de cada grupo.",
+      inline: false,
+    });
+  }
+
+  const desc = totalRewards > 0
+    ? `**RECIBIRÁ: ${fmtNum(totalRewards)} pts**\n¡Vamos por más! Sigamos escalando posiciones.`
+    : "**RECIBIRÁ: 0 pts**\nEl clan necesita tu apoyo — cada granito de arena cuenta para meternos al top 10.";
+
+  return {
+    title: `🏆 ESTADO DE LA COPA — ${getClanName()}`,
+    description: desc,
+    color: 0xFFD700,
+    fields,
+    footer: { text: "🏰 Clan Nightcore • Copa semanal" },
+    timestamp: new Date().toISOString(),
+  };
+}
 
 export default cupRouter;
