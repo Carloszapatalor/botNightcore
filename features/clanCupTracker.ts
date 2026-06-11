@@ -88,17 +88,61 @@ const CATEGORY_NAMES_ES: Record<string, string> = {
   GuardiansOfTheCitadelCompletions: "GUARDIANES",
 };
 
+const BOSS_BASE: Record<string, { icon: string; name: string }> = {
+  SkeletonWarrior:          { icon: "💀", name: "Guerrero Esqueleto" },
+  MalignantSpider:          { icon: "🕷️", name: "Araña Maligna" },
+  OtherworldlyGolem:        { icon: "🪨", name: "Gólem" },
+  Devil:                    { icon: "😈", name: "Demonio" },
+  Griffin:                  { icon: "🦅", name: "Grifo" },
+  Hades:                    { icon: "👿", name: "Hades" },
+  Zeus:                     { icon: "⚡", name: "Zeus" },
+  Medusa:                   { icon: "🐍", name: "Medusa" },
+  Chimera:                  { icon: "🔥", name: "Quimera" },
+  Sobek:                    { icon: "🐊", name: "Sobek" },
+  Kronos:                   { icon: "⏳", name: "Kronos" },
+  Mesines:                  { icon: "🐉", name: "Mesines" },
+  ReckoningOfTheGods:       { icon: "⚔️", name: "Ocaso de los Dioses" },
+  GuardiansOfTheCitadel:    { icon: "🏰", name: "Guardianes" },
+  BloodmoonMassacre:        { icon: "🌙", name: "Masacre de Sangre" },
+};
+
+const CAT_SUFFIXES: [string, string][] = [
+  ["Kills", "Kills"],
+  ["FastestKill", "Velocidad"],
+  ["Completions", "Completadas"],
+  ["CompletionSpeed", "Velocidad"],
+  ["HighestWave", "Mejor Ola"],
+  ["Speed", "Velocidad"],
+];
+
+function parseCupCategory(obj: string): { icon: string; nameES: string } {
+  if (CATEGORY_ICONS[obj] && CATEGORY_NAMES_ES[obj]) {
+    return { icon: CATEGORY_ICONS[obj], nameES: CATEGORY_NAMES_ES[obj] };
+  }
+  for (const [suffix, suffixES] of CAT_SUFFIXES) {
+    if (obj.endsWith(suffix)) {
+      const base = obj.slice(0, -suffix.length);
+      const boss = BOSS_BASE[base];
+      if (boss) return { icon: boss.icon, nameES: `${boss.name} (${suffixES})` };
+    }
+  }
+  return { icon: "⚔️", nameES: obj.replace(/([A-Z])/g, " $1").trim().toUpperCase() };
+}
+
 function getIcon(objective: string): string {
-  return CATEGORY_ICONS[objective] ?? "📋";
+  return parseCupCategory(objective).icon;
 }
 
 function getNameES(objective: string): string {
-  return CATEGORY_NAMES_ES[objective] ?? objective;
+  return parseCupCategory(objective).nameES;
 }
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+  if (n >= 1_000) {
+    if (n % 1000 === 0) return `${n / 1000}k`;
+    return n.toLocaleString("es-ES");
+  }
   return String(n);
 }
 
@@ -265,7 +309,7 @@ cupRouter.get("/cup-weekly", async (c) => {
       return c.json({ ok: true, cached: true });
     }
 
-    await sendEmbed("cup", embed);
+    await sendEmbed("clancup", embed);
     await db.execute({
       sql: `INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('cup_weekly', ?, ?)`,
       args: [signature, new Date().toISOString()],
@@ -279,7 +323,7 @@ cupRouter.get("/cup-weekly", async (c) => {
 cupRouter.get("/cup-status", async (c) => {
   try {
     const embed = await getCupStatusEmbed();
-    const sent = await sendEmbed("cup", embed);
+    const sent = await sendEmbed("clancup", embed);
     if (!sent) {
       return c.json({ ok: false, error: "No se pudo enviar a Discord. Verifica DISCORD_WEBHOOK_STATS." }, 500);
     }
