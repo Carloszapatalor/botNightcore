@@ -1,7 +1,6 @@
 import { getTursoClient } from "../lib/turso.ts";
 import {
   sendEmbed,
-  formatStreakAnnouncementEmbed,
   formatDailyXpEmbed,
   formatRankUpEmbed,
   formatRankGoalEmbed,
@@ -21,16 +20,7 @@ export async function checkAnnouncements(rankData: RankData, force = false): Pro
   const db = getTursoClient();
   const sent: string[] = [];
 
-  // 1. 🔥 Streak milestones: jugadores con racha múltiplo de 7
-  const streakRows = await db.execute(
-    `SELECT username, streak_current FROM member_metrics WHERE streak_current > 0 AND streak_current % 7 = 0`
-  );
-  for (const row of streakRows.rows as unknown as { username: string; streak_current: number }[]) {
-    const ok = await sendEmbed("stats", formatStreakAnnouncementEmbed(row.username, row.streak_current));
-    if (ok) sent.push(`🔥 streak:${row.username}(${row.streak_current}d)`);
-  }
-
-  // 2. 🏆 Rank subió vs hace 1h
+  // 1. 🏆 Rank subió vs hace 1h
   if (rankData.rank !== null) {
     const prevRow = await db.execute(
       `SELECT rank_position FROM clan_rank_history
@@ -45,7 +35,7 @@ export async function checkAnnouncements(rankData: RankData, force = false): Pro
     }
   }
 
-  // 3. 📈 Resumen XP diaria a las 23:00 UTC (o forzado)
+  // 2. 📈 Resumen XP diaria a las 23:00 UTC (o forzado)
   const hour = new Date().getUTCHours();
   if (force || hour === 23) {
     const today = getTodayUTC();
@@ -61,7 +51,7 @@ export async function checkAnnouncements(rankData: RankData, force = false): Pro
     }
   }
 
-  // 4. 🎯 Meta de rank: si estamos cerca del top 100 (dentro del 20% de distancia)
+  // 3. 🎯 Meta de rank: si estamos cerca del top 100 (dentro del 20% de distancia)
   if (rankData.rank !== null && rankData.rank > 100) {
     const distancia = rankData.rank - 100;
     // Notificar si faltan menos de 10 posiciones para el top 100
