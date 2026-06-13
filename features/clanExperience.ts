@@ -31,7 +31,7 @@ clanExperience.get("/", async (c) => {
       pct: totalXp > 0 ? (m.xp_gained / totalXp) * 100 : 0,
     }));
 
-    const signature = `${yesterday}:${totalXp}`;
+    const signature = yesterday;
 
     const cached = await db.execute({
       sql: `SELECT value FROM app_cache WHERE key = 'experience'`,
